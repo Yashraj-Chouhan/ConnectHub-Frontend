@@ -1,0 +1,158 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Tailwind CSS theme for glassmorphism design
+   * tailwind.config.js expects the following color variables to be expressed as HSL values.
+  */
+  :root {
+    --background: 240 10% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 240 10% 13%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 240 10% 13%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 260 95% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 280 70% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 10% 25%;
+    --muted-foreground: 240 5% 60%;
+
+    --accent: 260 95% 56%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 240 10% 20%;
+    --input: 240 10% 15%;
+    --ring: 260 95% 56%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 240 10% 13%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 260 95% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 70% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 10% 20%;
+    --sidebar-ring: 260 95% 56%;
+  }
+
+  .dark {
+    --background: 240 10% 8%;
+    --foreground: 0 0% 95%;
+    --card: 240 10% 13%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 10% 13%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 260 95% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 280 70% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 10% 25%;
+    --muted-foreground: 240 5% 60%;
+    --accent: 260 95% 56%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 240 10% 20%;
+    --input: 240 10% 15%;
+    --ring: 260 95% 56%;
+    --sidebar-background: 240 10% 13%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 260 95% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 280 70% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 10% 20%;
+    --sidebar-ring: 260 95% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1a3e 50%, #2d1b4e 100%);
+    min-height: 100vh;
+  }
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl;
+  }
+
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+
+  .glass-input {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-xl text-foreground placeholder-muted-foreground;
+  }
+
+  /* Override browser autofill background explicitly */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #1a1a3e inset !important;
+    -webkit-text-fill-color: white !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .glass-button {
+    @apply relative px-6 py-3 rounded-xl font-semibold overflow-hidden transition-all duration-300;
+  }
+
+  .glass-button-primary {
+    @apply glass-button bg-gradient-to-r from-primary to-secondary text-white hover:shadow-lg hover:shadow-primary/50 active:scale-95;
+  }
+
+  .glass-button-secondary {
+    @apply glass-button glass text-foreground hover:bg-white/10 active:scale-95;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent;
+  }
+
+  .glow {
+    @apply shadow-lg shadow-primary/50;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-300 hover:scale-105;
+  }
+}

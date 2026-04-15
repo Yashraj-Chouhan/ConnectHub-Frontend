@@ -1,0 +1,12 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/contexts/AuthContext";
+import Auth from "./pages/Auth";
+import ChatDashboard from "./pages/ChatDashboard";
+import NotFound from "./pages/NotFound";
+const queryClient = new QueryClient();
+const App = () => (_jsx(QueryClientProvider, { client: queryClient, children: _jsx(TooltipProvider, { children: _jsxs(AuthProvider, { children: [_jsx(BrowserRouter, { children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(Auth, {}) }), _jsx(Route, { path: "/chat", element: _jsx(ChatDashboard, {}) }), _jsx(Route, { path: "*", element: _jsx(NotFound, {}) })] }) }), _jsx(Toaster, {})] }) }) }));
+export default App;
