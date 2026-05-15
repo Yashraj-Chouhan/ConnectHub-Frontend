@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, Shield, User, Search, Crown } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, resolveAvatarUrl } from "@/lib/api";
 
-export const GroupManagementModal = ({ isOpen, onClose, roomId, groupName, members, currentUserId, onUpdateGroup, onLeaveGroup, onDeleteGroup }) => {
+export const GroupManagementModal = ({ isOpen, onClose, roomId, groupName, members, currentUserId, createdBy, onUpdateGroup, onLeaveGroup, onDeleteGroup }) => {
   const [editedName, setEditedName] = useState(groupName);
   const [groupMembers, setGroupMembers] = useState(members);
   const [showAddMembers, setShowAddMembers] = useState(false);
@@ -54,8 +54,17 @@ export const GroupManagementModal = ({ isOpen, onClose, roomId, groupName, membe
   }, [isOpen, showAddMembers, searchQuery]);
 
   const isAdmin = useMemo(
-    () => groupMembers.some((member) => (member.userId || member.id) === currentUserId && member.role === "admin"),
-    [groupMembers, currentUserId]
+    () => {
+      if (!currentUserId) return false;
+      // Creator is always treated as admin even if the role field hasn't loaded yet.
+      if (createdBy && currentUserId === createdBy) return true;
+      return groupMembers.some(
+        (member) =>
+          (member.userId || member.id) === currentUserId &&
+          String(member.role || "").toLowerCase() === "admin"
+      );
+    },
+    [groupMembers, currentUserId, createdBy]
   );
 
   const handleRemoveMember = (memberId) => {
@@ -75,7 +84,7 @@ export const GroupManagementModal = ({ isOpen, onClose, roomId, groupName, membe
         id: userId,
         userId,
         name: displayName,
-        avatar: user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`,
+        avatar: resolveAvatarUrl(user.avatarUrl) || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`,
         role: "member",
       },
     ]);
@@ -202,7 +211,7 @@ export const GroupManagementModal = ({ isOpen, onClose, roomId, groupName, membe
                             .map((user, idx) => {
                               const userId = user.userId || user.id;
                               const displayName = (user.fullName || user.username || user.email || "").trim() || "User";
-                              const avatar = user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
+                              const avatar = resolveAvatarUrl(user.avatarUrl) || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
 
                               return (
                                 <motion.button
@@ -235,7 +244,7 @@ export const GroupManagementModal = ({ isOpen, onClose, roomId, groupName, membe
                         className="p-3 bg-white/5 rounded-xl flex items-center gap-3 hover:bg-white/8 transition-colors group border border-white/5"
                       >
                         <img
-                          src={member.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(member.name || member.username || memberId)}`}
+                          src={resolveAvatarUrl(member.avatar) || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(member.name || member.username || memberId)}`}
                           alt={member.name || member.username || "Member"}
                           className="w-9 h-9 rounded-full object-cover flex-shrink-0"
                         />

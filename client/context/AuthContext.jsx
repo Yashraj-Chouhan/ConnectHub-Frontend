@@ -1,5 +1,12 @@
+/*
+ * Auth/session state for the frontend.
+ *
+ * This context is the single source of truth for the logged-in user, token
+ * persistence, profile refreshes, and auth-related helper actions.
+ */
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, resolveAvatarUrl, normalizeTranslationLanguage } from "@/lib/api";
+import { useTheme } from "@/context/ThemeContext";
 
 const AuthContext = createContext(undefined);
 
@@ -28,14 +35,18 @@ function fallbackAvatar(seed) {
   return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(value)}`;
 }
 
+// Converts whatever the backend returned into one stable user shape that the
+// rest of the UI can consume consistently.
 function normalizeUser(profile, loginResponse, token) {
   const userId =
     profile?.userId || loginResponse?.userId || loginResponse?.id || null;
   const username = profile?.username || loginResponse?.username || "";
   const fullName = profile?.fullName || username || "";
   const avatarUrl = profile?.avatarUrl || loginResponse?.avatarUrl || "";
-  const preferredLanguage =
-    profile?.preferredLanguage ?? loginResponse?.preferredLanguage ?? "en";
+  const preferredLanguage = normalizeTranslationLanguage(
+    profile?.preferredLanguage ?? loginResponse?.preferredLanguage ?? "en",
+    "en"
+  );
 
   return {
     id: userId,
@@ -45,9 +56,9 @@ function normalizeUser(profile, loginResponse, token) {
     name: fullName || username,
     email: profile?.email || loginResponse?.email || "",
     phoneNumber: profile?.phoneNumber || loginResponse?.phoneNumber || "",
-    avatarUrl,
+    avatarUrl: resolveAvatarUrl(avatarUrl),
     avatar:
-      avatarUrl ||
+      resolveAvatarUrl(avatarUrl) ||
       fallbackAvatar(fullName || username || userId || "connecthub"),
     bio: profile?.bio || "",
     preferredLanguage,
@@ -86,6 +97,7 @@ function loadStoredUser() {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => loadStoredUser());
   const [token, setToken] = useState(() => safeReadStorage("token"));
+  const { syncThemeFromLanguage } = useTheme();
 
   const persistAuth = (nextUser, nextToken) => {
     setUser(nextUser);
@@ -103,6 +115,10 @@ export const AuthProvider = ({ children }) => {
     } else {
       safeWriteStorage("token", null);
     }
+
+    if (nextUser?.preferredLanguage) {
+      syncThemeFromLanguage(nextUser.preferredLanguage);
+    }
   };
 
   const refreshUser = async (userId = user?.userId) => {
@@ -116,8 +132,7 @@ export const AuthProvider = ({ children }) => {
     return nextUser;
   };
 
-  const login = async (identifier, password) => {
-    const authResponse = await api.auth.login(identifier, password);
+  const finalizeLogin = async (authResponse) => {
     const bootstrapUser = normalizeUser(null, authResponse, authResponse.token);
     persistAuth(bootstrapUser, authResponse.token);
     try {
@@ -133,11 +148,31 @@ export const AuthProvider = ({ children }) => {
     return loadStoredUser() || bootstrapUser;
   };
 
+  const login = async (identifier, password) => {
+    const authResponse = await api.auth.login(identifier, password);
+    return finalizeLogin(authResponse);
+  };
+
+  const loginWithGoogle = async (idToken) => {
+    const authResponse = await api.auth.loginWithGoogle(idToken);
+    return finalizeLogin(authResponse);
+  };
+
   const signup = async ({ username, email, phoneNumber, password }) => {
     await api.auth.register({ username, email, phoneNumber, password });
     return {
       message: "Account created successfully. Please sign in.",
     };
+  };
+
+  const initiateSignup = async ({ username, email, phoneNumber, password }) => {
+    const res = await api.auth.initiateSignup({ username, email, phoneNumber, password });
+    return res; // contains { message }
+  };
+
+  const completeSignup = async (email, otp) => {
+    const res = await api.auth.completeSignup(email, otp);
+    return res; // contains { message }
   };
 
   const updateProfile = async (updates) => {
@@ -206,7 +241,10 @@ export const AuthProvider = ({ children }) => {
       token,
       isAuthenticated: Boolean(user && token),
       login,
+      loginWithGoogle,
       signup,
+      initiateSignup,
+      completeSignup,
       logout,
       updateProfile,
       forgotPassword,

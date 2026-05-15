@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Mail, Plus, Search, Trash2, Users, X } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, resolveAvatarUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { normalizeUserSummary } from "@/lib/chat";
 
@@ -18,7 +18,7 @@ const toContactUser = (contact) => {
     username: contact.username || "",
     fullName: contact.fullName || contact.nickname || contact.contactEmail,
     email: contact.contactEmail || "",
-    avatarUrl: contact.avatarUrl || "",
+    avatarUrl: resolveAvatarUrl(contact.avatarUrl) || "",
     bio: contact.bio || "",
     preferredLanguage: contact.preferredLanguage || null,
     onlineStatus: contact.onlineStatus || "OFFLINE",
@@ -78,38 +78,50 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
           return;
         }
 
-        const email = searchQuery.trim().toLowerCase();
-        if (!isValidEmail(email)) {
-          if (!cancelled) {
-            setAvailableUsers([]);
-            setResolvedDirectUser(null);
-            setSelectedMembers([]);
-            setError("");
-          }
-          return;
-        }
-
-        const candidate = await api.auth.findUserByEmail(email);
-        if (!cancelled) {
+        const query = searchQuery.trim();
+        const results = await api.auth.searchUsers(query);
+        const candidates = (Array.isArray(results) ? results : []).filter((candidate) => {
           const candidateId = candidate.userId || candidate.id;
-          if (candidateId === user?.userId) {
-            setAvailableUsers([]);
+          return candidateId !== user?.userId;
+        });
+
+        if (!cancelled) {
+          setAvailableUsers(candidates);
+
+          if (candidates.length === 0) {
             setResolvedDirectUser(null);
             setSelectedMembers([]);
-            setError("You cannot start a direct message with yourself.");
+            setRoomName("");
+            setError("No registered user found for that email or username.");
             return;
           }
 
-          const normalizedCandidate = {
-            ...candidate,
-            userId: candidateId,
-            id: candidateId,
-          };
+          const lowerQuery = query.toLowerCase();
+          const exactMatch = candidates.find((candidate) => {
+            const fields = [candidate.email, candidate.username, candidate.fullName]
+              .filter(Boolean)
+              .map((value) => String(value).trim().toLowerCase());
+            return fields.includes(lowerQuery);
+          });
+          const selectedCandidate = exactMatch || (candidates.length === 1 ? candidates[0] : null);
 
-          setAvailableUsers([normalizedCandidate]);
-          setResolvedDirectUser(normalizedCandidate);
-          setSelectedMembers([candidateId]);
-          setRoomName((normalizedCandidate.fullName || normalizedCandidate.username || normalizedCandidate.email || "").trim());
+          if (selectedCandidate) {
+            const candidateId = selectedCandidate.userId || selectedCandidate.id;
+            const normalizedCandidate = {
+              ...selectedCandidate,
+              userId: candidateId,
+              id: candidateId,
+            };
+
+            setResolvedDirectUser(normalizedCandidate);
+            setSelectedMembers([candidateId]);
+            setRoomName((normalizedCandidate.fullName || normalizedCandidate.username || normalizedCandidate.email || "").trim());
+            setError("");
+            return;
+          }
+
+          setResolvedDirectUser(null);
+          setSelectedMembers([]);
           setError("");
         }
       } catch (err) {
@@ -119,10 +131,8 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
           const message = err instanceof Error ? err.message : "";
           if (isGroup) {
             setError(message || "Could not load users.");
-          } else if (searchQuery.trim()) {
-            setSelectedMembers([]);
-            setError(isValidEmail(searchQuery.trim()) ? "No registered user found for that email." : "");
           } else {
+            setSelectedMembers([]);
             setError(message || "Could not load users.");
           }
         }
@@ -193,7 +203,13 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
   const trimmedSearch = searchQuery.trim();
   const normalizedSearch = trimmedSearch.toLowerCase();
   const exactSavedContact = useMemo(
-    () => savedContacts.find((contact) => contact.contactEmail?.toLowerCase() === normalizedSearch) || null,
+    () =>
+      savedContacts.find((contact) => {
+        const haystacks = [contact.contactEmail, contact.username, contact.nickname, contact.fullName]
+          .filter(Boolean)
+          .map((value) => String(value).toLowerCase());
+        return haystacks.includes(normalizedSearch);
+      }) || null,
     [savedContacts, normalizedSearch]
   );
 
@@ -272,7 +288,7 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
 
   const handlePickSavedContact = (contact) => {
     const email = contact?.contactEmail || "";
-    setSearchQuery(email);
+    setSearchQuery(contact?.username || email);
     setError("");
     setContactMessage("");
 
@@ -312,6 +328,16 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
 
   const handleCreateRoom = () => {
     const directMemberId = selectedMembers[0] || resolvedDirectUser?.userId || resolvedDirectUser?.id;
+    const directDisplayName =
+      selectedUsers[0]?.fullName ||
+      selectedUsers[0]?.username ||
+      selectedUsers[0]?.email ||
+      resolvedDirectUser?.fullName ||
+      resolvedDirectUser?.username ||
+      resolvedDirectUser?.email ||
+      searchQuery.trim() ||
+      "Direct Chat";
+    const normalizedRoomName = roomName.trim() || directDisplayName;
 
     if (!isGroup && !directMemberId) {
       setError("Enter a registered email address to start a direct chat.");
@@ -324,7 +350,7 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
     }
 
     onCreateRoom?.({
-      name: roomName.trim(),
+      name: isGroup ? roomName.trim() : normalizedRoomName,
       isGroup,
       memberUserIds: isGroup ? selectedMembers : [directMemberId],
       members: selectedUsers,
@@ -422,7 +448,7 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
 
               <div className="space-y-3">
                 <label className="text-sm font-medium text-gray-300">
-                  {isGroup ? `Add Members (${selectedMembers.length} selected)` : "Find User by Email"}
+                  {isGroup ? `Add Members (${selectedMembers.length} selected)` : "Find User by Email or Username"}
                 </label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -430,7 +456,7 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={isGroup ? "Search by name, email, or phone..." : "Enter email address to start a chat..."}
+                    placeholder={isGroup ? "Search by name, email, or phone..." : "Search by email or username..."}
                     className="glass-input w-full pl-9 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
                   />
                 </div>
@@ -440,7 +466,7 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
                     <p className="text-xs text-gray-500">
                       {exactSavedContact
                         ? exactSavedContact.registered
-                          ? "This email is already in your contacts and ready to chat."
+                          ? "This contact is already in your contacts and ready to chat."
                           : "Saved contact is waiting for the person to register."
                         : "Save email addresses now and start chatting when the account is active."}
                     </p>
@@ -492,7 +518,7 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
                           const isRegistered = Boolean(userProfile);
                           const isSelected = selectedMembers.includes(userProfile?.userId || userProfile?.id);
                           const avatarSeed = encodeURIComponent(contactDisplayName(contact));
-                          const avatar = contact.avatarUrl || userProfile?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`;
+                          const avatar = resolveAvatarUrl(contact.avatarUrl || userProfile?.avatar) || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`;
 
                           return (
                             <motion.button
@@ -547,22 +573,20 @@ export const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
                 <div className="space-y-2 max-h-52 overflow-y-auto">
                   {loadingUsers ? (
                     <p className="text-center text-gray-500 text-sm py-4">Loading users...</p>
-                  ) : searchQuery.trim() && !isGroup && !isValidEmail(searchQuery.trim()) ? (
-                    <p className="text-center text-gray-500 text-sm py-4">Type a full email address to find a registered user</p>
                   ) : searchQuery.trim() && availableUsers.length === 0 ? (
                     <p className="text-center text-gray-500 text-sm py-4">
-                      {isGroup ? "No users found" : "No registered user found for that email"}
+                      {isGroup ? "No users found" : "No registered user found for that email or username"}
                     </p>
                   ) : !searchQuery.trim() ? (
                     <p className="text-center text-gray-500 text-sm py-4">
-                      {isGroup ? "Search for people to start a conversation" : "Enter an email address to start a direct chat"}
+                      {isGroup ? "Search for people to start a conversation" : "Search for a saved contact or registered user"}
                     </p>
                   ) : (
                     availableUsers.map((user, idx) => {
                       const userId = user.userId || user.id;
                       const displayName = (user.fullName || user.username || user.email || "").trim() || "User";
                       const avatarSeed = encodeURIComponent(displayName);
-                      const avatar = user.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`;
+                      const avatar = resolveAvatarUrl(user.avatarUrl) || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`;
                       const isSelected = selectedMembers.includes(userId);
 
                       return (

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, Lock, Mail, User, ArrowRight, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
 
 // --- 3D floating shape canvas background ---
 const AnimatedBackground = () => {
@@ -221,10 +222,12 @@ const AnimatedBackground = () => {
 
 // --- Auth page ---
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [authMode, setAuthMode] = useState("login"); // 'login', 'signup', 'forgot', 'otp', 'reset'
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, signup } = useAuth();
   const navigate = useNavigate();
@@ -234,17 +237,33 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (isLogin) {
+      if (authMode === "login") {
         await login(email, password);
-      } else {
+        navigate("/chat");
+      } else if (authMode === "signup") {
         await signup(name, email, password);
+        navigate("/chat");
+      } else if (authMode === "forgot") {
+        await api.post("/auth/forgot-password", { identifier: email });
+        toast({ title: "OTP Sent", description: "Please check your email for the OTP." });
+        setAuthMode("otp");
+      } else if (authMode === "otp") {
+        const resp = await api.post("/auth/verify-otp", { identifier: email, otp });
+        setResetToken(resp.resetToken);
+        toast({ title: "OTP Verified", description: "Please create a new password." });
+        setAuthMode("reset");
+        setPassword("");
+      } else if (authMode === "reset") {
+        await api.post("/auth/reset-password", { token: resetToken, newPassword: password });
+        toast({ title: "Password Reset Successful", description: "You can now sign in." });
+        setAuthMode("login");
+        setPassword("");
       }
-      navigate("/chat");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";
       toast({
-        title: isLogin ? "Sign In Failed" : "Sign Up Failed",
+        title: "Action Failed",
         description: message,
         variant: "destructive",
       });
@@ -253,11 +272,12 @@ const Auth = () => {
     }
   };
 
-  const switchMode = () => {
-    setIsLogin(!isLogin);
+  const switchMode = (mode) => {
+    setAuthMode(mode);
     setName("");
-    setEmail("");
     setPassword("");
+    setOtp("");
+    // We intentionally keep email filled for convenience between modes
   };
 
   return (
@@ -283,33 +303,39 @@ const Auth = () => {
             </div>
             <h1 className="auth-title">ConnectHub</h1>
             <p className="auth-subtitle">
-              {isLogin ? "Welcome back" : "Create your account"}
+              {authMode === "login" && "Welcome back"}
+              {authMode === "signup" && "Create your account"}
+              {authMode === "forgot" && "Reset your password"}
+              {authMode === "otp" && "Verify OTP"}
+              {authMode === "reset" && "Create new password"}
             </p>
           </div>
 
-          {/* Toggle tabs */}
-          <div className="auth-tabs">
-            <button
-              type="button"
-              className={`auth-tab ${isLogin ? "auth-tab-active" : ""}`}
-              onClick={() => !isLogin && switchMode()}
-              disabled={loading}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              className={`auth-tab ${!isLogin ? "auth-tab-active" : ""}`}
-              onClick={() => isLogin && switchMode()}
-              disabled={loading}
-            >
-              Sign Up
-            </button>
-          </div>
+          {/* Toggle tabs (only show during login/signup) */}
+          {(authMode === "login" || authMode === "signup") && (
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={`auth-tab ${authMode === "login" ? "auth-tab-active" : ""}`}
+                onClick={() => authMode !== "login" && switchMode("login")}
+                disabled={loading}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                className={`auth-tab ${authMode === "signup" ? "auth-tab-active" : ""}`}
+                onClick={() => authMode !== "signup" && switchMode("signup")}
+                disabled={loading}
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="auth-form">
-            {!isLogin && (
+            {authMode === "signup" && (
               <div className="auth-field" style={{ animationDelay: "0.05s" }}>
                 <User className="auth-field-icon" />
                 <input
@@ -326,35 +352,69 @@ const Auth = () => {
               </div>
             )}
 
-            <div className="auth-field" style={{ animationDelay: "0.1s" }}>
-              <Mail className="auth-field-icon" />
-              <input
-                type="email"
-                id="auth-email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="auth-input input-glass"
-                required
-                disabled={loading}
-                autoComplete="email"
-              />
-            </div>
+            {(authMode === "login" || authMode === "signup" || authMode === "forgot") && (
+              <div className="auth-field" style={{ animationDelay: "0.1s" }}>
+                <Mail className="auth-field-icon" />
+                <input
+                  type="email"
+                  id="auth-email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="auth-input input-glass"
+                  required
+                  disabled={loading || authMode === "otp" || authMode === "reset"}
+                  autoComplete="email"
+                />
+              </div>
+            )}
 
-            <div className="auth-field" style={{ animationDelay: "0.15s" }}>
-              <Lock className="auth-field-icon" />
-              <input
-                type="password"
-                id="auth-password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="auth-input input-glass"
-                required
-                disabled={loading}
-                autoComplete={isLogin ? "current-password" : "new-password"}
-              />
-            </div>
+            {authMode === "otp" && (
+              <div className="auth-field" style={{ animationDelay: "0.1s" }}>
+                <Lock className="auth-field-icon" />
+                <input
+                  type="text"
+                  id="auth-otp"
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  className="auth-input input-glass"
+                  required
+                  disabled={loading}
+                  maxLength={6}
+                />
+              </div>
+            )}
+
+            {(authMode === "login" || authMode === "signup" || authMode === "reset") && (
+              <div className="auth-field" style={{ animationDelay: "0.15s" }}>
+                <Lock className="auth-field-icon" />
+                <input
+                  type="password"
+                  id="auth-password"
+                  placeholder={authMode === "reset" ? "New Password" : "Password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="auth-input input-glass"
+                  required
+                  disabled={loading}
+                  autoComplete={authMode === "login" ? "current-password" : "new-password"}
+                />
+              </div>
+            )}
+
+            {authMode === "login" && (
+              <div className="flex justify-end" style={{ animationDelay: "0.17s", marginTop: "-10px" }}>
+                <button
+                  type="button"
+                  onClick={() => switchMode("forgot")}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                  disabled={loading}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -366,28 +426,48 @@ const Auth = () => {
               {loading ? (
                 <>
                   <Loader2 className="auth-btn-icon animate-spin" />
-                  {isLogin ? "Signing In…" : "Creating Account…"}
+                  {authMode === "login" ? "Signing In…" : authMode === "signup" ? "Creating Account…" : "Please wait…"}
                 </>
               ) : (
                 <>
-                  {isLogin ? "Sign In" : "Create Account"}
+                  {authMode === "login" && "Sign In"}
+                  {authMode === "signup" && "Create Account"}
+                  {authMode === "forgot" && "Send OTP"}
+                  {authMode === "otp" && "Verify OTP"}
+                  {authMode === "reset" && "Update Password"}
                   <ArrowRight className="auth-btn-icon" />
                 </>
               )}
             </button>
           </form>
 
-          <p className="auth-switch-text">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button
-              type="button"
-              onClick={switchMode}
-              disabled={loading}
-              className="auth-switch-link"
-            >
-              {isLogin ? "Sign Up" : "Sign In"}
-            </button>
-          </p>
+          {(authMode === "login" || authMode === "signup") && (
+            <p className="auth-switch-text">
+              {authMode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+              <button
+                type="button"
+                onClick={() => switchMode(authMode === "login" ? "signup" : "login")}
+                disabled={loading}
+                className="auth-switch-link"
+              >
+                {authMode === "login" ? "Sign Up" : "Sign In"}
+              </button>
+            </p>
+          )}
+
+          {(authMode === "forgot" || authMode === "otp" || authMode === "reset") && (
+            <p className="auth-switch-text">
+              Remember your password?{" "}
+              <button
+                type="button"
+                onClick={() => switchMode("login")}
+                disabled={loading}
+                className="auth-switch-link"
+              >
+                Sign In
+              </button>
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -1,3 +1,7 @@
+/*
+ * Production Node entry point for serving the built SPA and forwarding any
+ * API routes handled by the colocated Express server.
+ */
 import path from "node:path";
 import { createServer } from "./index.js";
 import * as express from "express";
@@ -8,8 +12,9 @@ const __dirname = import.meta.dirname;
 const distPath = path.join(__dirname, "../spa");
 // Serve static files
 app.use(express.static(distPath));
-// Handle React Router - serve index.html for all non-API routes
-app.get("*", (req, res) => {
+// Handle React Router - serve index.html for all non-API routes.
+// Express 5 rejects unnamed "*" routes, so use a catch-all middleware instead.
+app.use((req, res) => {
     // Don't serve index.html for API routes
     if (req.path.startsWith("/api/") || req.path.startsWith("/health")) {
         return res.status(404).json({ error: "API endpoint not found" });

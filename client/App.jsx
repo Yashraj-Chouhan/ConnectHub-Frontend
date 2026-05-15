@@ -1,12 +1,22 @@
+/*
+ * Frontend application shell.
+ *
+ * This file wires global providers and routes for the login flow, chat
+ * experience, hidden admin portal, and fallback error/loading states.
+ */
 import "./global.css";
 import { Component, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 const Chat = lazy(() => import("./pages/Chat"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+
 
 const rootElement =
   document.getElementById("root") ||
@@ -18,7 +28,7 @@ const rootElement =
   })();
 
 const Spinner = () => (
-  <div className="min-h-screen bg-gradient-to-br from-[#0a0e27] via-[#1a1a3e] to-[#2d1b4e] flex items-center justify-center">
+  <div className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--bg-gradient-mid)] to-[var(--bg-gradient-end)] flex items-center justify-center">
     <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
   </div>
 );
@@ -34,7 +44,7 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0a0e27] via-[#1a1a3e] to-[#2d1b4e] flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-[var(--bg-gradient-start)] via-[var(--bg-gradient-mid)] to-[var(--bg-gradient-end)] flex items-center justify-center">
           <div className="text-center space-y-4 p-8">
             <div className="text-5xl">💬</div>
             <h2 className="text-2xl font-bold text-white">Something went wrong</h2>
@@ -55,29 +65,37 @@ class ErrorBoundary extends Component {
   }
 }
 
+// Keeps the router and global providers in one place so every page shares the
+// same auth, theme, and error-boundary behavior.
 const App = () => (
   <ErrorBoundary>
-    <AuthProvider>
-      <BrowserRouter>
-        <Suspense fallback={<Spinner />}>
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/chat"
-              element={
-                <ErrorBoundary>
-                  <Chat />
-                </ErrorBoundary>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Suspense fallback={<Spinner />}>
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/chat"
+                element={
+                  <ErrorBoundary>
+                    <Chat />
+                  </ErrorBoundary>
+                }
+              />
+
+              {/* ── Admin portal (unlisted — not linked from any public UI) */}
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   </ErrorBoundary>
 );
 
 createRoot(rootElement).render(<App />);
-

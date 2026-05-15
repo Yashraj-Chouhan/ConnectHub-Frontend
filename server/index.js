@@ -1,3 +1,7 @@
+/*
+ * Lightweight Express wrapper used when the frontend is packaged with its own
+ * small Node server instead of running only as a static Vite app.
+ */
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
