@@ -10,7 +10,17 @@ npm install
 npm run dev
 ```
 
-By default the app talks to `http://localhost:8080` for backend requests.
+When the app is opened on `localhost` or a private LAN IP, it automatically
+talks to the backend gateway on the same host at port `8080`.
+
+- `http://localhost:5173` -> `http://localhost:8080`
+- `http://192.168.x.x:5173` -> `http://192.168.x.x:8080`
+
+If you explicitly want the Vite `/api` proxy path in development, set:
+
+```env
+VITE_USE_DEV_PROXY=true
+```
 
 ## Docker deployment
 
@@ -31,6 +41,11 @@ VITE_API_BASE_URL=http://<ec2-public-ip>:8080
 VITE_GOOGLE_CLIENT_ID=your_google_web_client_id.apps.googleusercontent.com
 FRONTEND_PUBLIC_PORT=80
 ```
+
+`VITE_API_BASE_URL` is only needed for the split-origin EC2 deployment where
+the frontend is served on port `80` and the backend gateway stays on `8080`.
+The same codebase still uses the local gateway automatically when opened on
+`localhost` during development.
 
 Then run from the `frontend` folder:
 

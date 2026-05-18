@@ -15,6 +15,10 @@ FRONTEND_PUBLIC_PORT=80
 PING_MESSAGE=ping
 ```
 
+This deployment value does not break local development. When the same frontend
+code is opened on `localhost` or a private LAN IP, it automatically switches
+back to the local backend gateway on port `8080`.
+
 Example:
 
 ```env
