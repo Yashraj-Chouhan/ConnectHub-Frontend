@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { api, SUPPORTED_TRANSLATION_LANGUAGES, normalizeTranslationLanguage } from '@/lib/api';
 import { defaultAvatar } from '@/lib/chat';
-import { getThemeForLanguage, getThemeLabel } from '@/lib/theme';
+import { getThemeForLanguage, getThemeLabel } from "../../lib/theme";
 import { cn } from '@/lib/utils';
 import { BuyCreditsModal } from './BuyCreditsModal';
 

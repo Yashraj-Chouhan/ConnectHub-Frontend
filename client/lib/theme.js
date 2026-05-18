@@ -1,4 +1,4 @@
-import { normalizeTranslationLanguage } from "@/lib/api";
+import { normalizeTranslationLanguage } from "./api";
 
 const THEME_DEFINITIONS = Object.freeze([
   { value: "coffee", label: "Coffee", description: "Beige and brown" },

@@ -5,7 +5,7 @@
  * lets the user override it and persist that choice locally.
  */
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { DEFAULT_THEME, getThemeForLanguage, normalizeAppTheme } from "@/lib/theme";
+import { DEFAULT_THEME, getThemeForLanguage, normalizeAppTheme } from "../lib/theme";
 
 const ThemeContext = createContext();
 

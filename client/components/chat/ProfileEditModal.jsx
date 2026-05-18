@@ -5,7 +5,7 @@ import { api, resolveAvatarUrl, SUPPORTED_TRANSLATION_LANGUAGES, normalizeTransl
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { BuyCreditsModal } from "./BuyCreditsModal";
-import { getThemeDescription, getThemeForLanguage, getThemeLabel, THEME_OPTIONS } from "@/lib/theme";
+import { getThemeDescription, getThemeForLanguage, getThemeLabel, THEME_OPTIONS } from "../../lib/theme";
 
 const SUPPORTED_LANGUAGES = [
   { code: "none", name: "Disable Translation" },

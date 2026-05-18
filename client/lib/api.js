@@ -4,40 +4,30 @@
  * This module centralizes URL building, token handling, error normalization,
  * and convenience wrappers for each backend capability used by the UI.
  */
+import {
+  parseBooleanEnv,
+  resolveApiBaseUrl,
+  trimTrailingSlash,
+} from "./apiBaseUrl";
+
 const DEV_API_PROXY_PREFIX = "/api";
 const DEFAULT_GATEWAY_PORT = String(import.meta.env.VITE_GATEWAY_PORT || "8080").trim();
 
-function trimTrailingSlash(value) {
-  return value ? value.replace(/\/+$/, "") : "";
-}
-
 const configuredApiBaseUrl = trimTrailingSlash(import.meta.env.VITE_API_BASE_URL);
-const forceDirectApiInDev =
-  String(import.meta.env.VITE_USE_DEV_PROXY || "true").trim().toLowerCase() === "false";
+const useDevProxy = import.meta.env.DEV && parseBooleanEnv(import.meta.env.VITE_USE_DEV_PROXY, false);
 
-const runtimeApiBaseUrl = (() => {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  if (import.meta.env.DEV) {
-    if (!forceDirectApiInDev) {
-      return "";
-    }
-
-    const host = window.location.hostname;
-    if (!host) {
-      return "";
-    }
-    return trimTrailingSlash(`${window.location.protocol}//${host}:${DEFAULT_GATEWAY_PORT}`);
-  }
-
-  return trimTrailingSlash(window.location.origin);
-})();
-
-const useDevProxy = import.meta.env.DEV && !forceDirectApiInDev;
-
-export const API_BASE_URL = configuredApiBaseUrl || runtimeApiBaseUrl;
+export const API_BASE_URL = resolveApiBaseUrl({
+  configuredApiBaseUrl,
+  gatewayPort: DEFAULT_GATEWAY_PORT,
+  isDev: import.meta.env.DEV,
+  locationLike: typeof window === "undefined" ? undefined : window.location,
+});
+const runtimeHostApiBaseUrl = resolveApiBaseUrl({
+  configuredApiBaseUrl: "",
+  gatewayPort: DEFAULT_GATEWAY_PORT,
+  isDev: import.meta.env.DEV,
+  locationLike: typeof window === "undefined" ? undefined : window.location,
+});
 
 // For direct-link URLs (attachment downloads etc.) we need the explicit prefix.
 // In proxy mode, that stays on /api so Vite can forward the request.
@@ -176,11 +166,11 @@ function buildDirectUrl(path, query) {
 }
 
 function buildRuntimeFallbackUrl(path, query) {
-  if (!runtimeApiBaseUrl || runtimeApiBaseUrl === API_BASE_URL) {
+  if (!runtimeHostApiBaseUrl || runtimeHostApiBaseUrl === API_BASE_URL) {
     return null;
   }
 
-  return buildAbsoluteUrl(runtimeApiBaseUrl, path, query);
+  return buildAbsoluteUrl(runtimeHostApiBaseUrl, path, query);
 }
 
 function getToken() {
