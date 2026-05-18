@@ -155,9 +155,9 @@ function buildUrl(path, query) {
   return url.toString();
 }
 
-function buildDirectUrl(path, query) {
+function buildAbsoluteUrl(baseUrl, path, query) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = new URL(normalizedPath, `${API_BASE_URL}/`);
+  const url = new URL(normalizedPath, `${baseUrl}/`);
 
   if (query && typeof query === "object") {
     Object.entries(query).forEach(([key, value]) => {
@@ -169,6 +169,18 @@ function buildDirectUrl(path, query) {
   }
 
   return url.toString();
+}
+
+function buildDirectUrl(path, query) {
+  return buildAbsoluteUrl(API_BASE_URL, path, query);
+}
+
+function buildRuntimeFallbackUrl(path, query) {
+  if (!runtimeApiBaseUrl || runtimeApiBaseUrl === API_BASE_URL) {
+    return null;
+  }
+
+  return buildAbsoluteUrl(runtimeApiBaseUrl, path, query);
 }
 
 function getToken() {
@@ -315,7 +327,16 @@ async function request(path, options = {}) {
           throw new Error("Could not connect to the backend. Make sure the services are running.");
         }
       } else {
-        throw new Error("Could not connect to the backend. Make sure the services are running.");
+        const runtimeFallbackUrl = buildRuntimeFallbackUrl(path, query);
+        if (runtimeFallbackUrl) {
+          try {
+            response = await makeRequest(runtimeFallbackUrl);
+          } catch {
+            throw new Error("Could not connect to the backend. Make sure the services are running.");
+          }
+        } else {
+          throw new Error("Could not connect to the backend. Make sure the services are running.");
+        }
       }
     }
 
