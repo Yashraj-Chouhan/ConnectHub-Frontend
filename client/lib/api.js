@@ -12,12 +12,19 @@ function trimTrailingSlash(value) {
 }
 
 const configuredApiBaseUrl = trimTrailingSlash(import.meta.env.VITE_API_BASE_URL);
+const forceDirectApiInDev =
+  String(import.meta.env.VITE_USE_DEV_PROXY || "true").trim().toLowerCase() === "false";
+
 const runtimeApiBaseUrl = (() => {
   if (typeof window === "undefined") {
     return "";
   }
 
   if (import.meta.env.DEV) {
+    if (!forceDirectApiInDev) {
+      return "";
+    }
+
     const host = window.location.hostname;
     if (!host) {
       return "";
@@ -28,10 +35,7 @@ const runtimeApiBaseUrl = (() => {
   return trimTrailingSlash(window.location.origin);
 })();
 
-const useDevProxy =
-  import.meta.env.DEV &&
-  !configuredApiBaseUrl &&
-  String(import.meta.env.VITE_USE_DEV_PROXY || "true").trim().toLowerCase() !== "false";
+const useDevProxy = import.meta.env.DEV && !forceDirectApiInDev;
 
 export const API_BASE_URL = configuredApiBaseUrl || runtimeApiBaseUrl;
 
