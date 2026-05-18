@@ -291,7 +291,7 @@ function AssistPanelContent({
         />
       </div>
 
-      <div className={`grid gap-2 ${toolGridClass}`}>
+      <div className="grid gap-2">
         <label className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/75">
           <span className="block text-[11px] uppercase tracking-[0.2em] text-white/55">
             Translate remote captions to
@@ -317,47 +317,16 @@ function AssistPanelContent({
             ))}
           </select>
         </label>
-
-        <label className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/75">
-          <span className="block text-[11px] uppercase tracking-[0.2em] text-white/55">
-            Speech input language
-          </span>
-          <select
-            value={speechInputLanguage}
-            onChange={(event) =>
-              onSpeechInputLanguageChange?.(event.target.value)
-            }
-            disabled={!captionsSupported}
-            className="mt-2 w-full bg-transparent text-sm font-medium text-white outline-none disabled:opacity-60"
-          >
-            {(captionLanguages || []).map((language) => (
-              <option
-                key={language.code}
-                value={language.code}
-                className="text-black"
-              >
-                {language.name}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
-      {(remotePrimaryCaption || localPrimaryCaption) ? (
-        <div className={`grid gap-2 ${toolGridClass}`}>
+      {remotePrimaryCaption ? (
+        <div className="grid gap-2">
           <CaptionCard
             title={`${activeCall.peerName} says`}
             status={remoteCaptionStatus}
             detail={resolveCaptionLanguageDetail(captionLanguages, remoteCaption)}
             primary={remotePrimaryCaption}
             secondary={remoteSecondaryCaption}
-          />
-          <CaptionCard
-            title="You say"
-            status={localCaptionStatus}
-            detail={`Speech input: ${speechInputLabel}`}
-            primary={localPrimaryCaption}
-            secondary=""
           />
         </div>
       ) : null}
@@ -369,7 +338,7 @@ function AssistPanelContent({
           </p>
           <p className="mt-2">
             {captionsEnabled
-              ? `Remote speech is shown as ${translationLabel} captions while your speech input is set to ${speechInputLabel}.`
+              ? `Remote speech is shown as ${translationLabel} captions with automatic source-language detection.`
               : "Turn on live captions to show translated subtitles during the call."}
           </p>
         </div>
@@ -432,14 +401,14 @@ function CompactCaptionStrip({
   remoteCaptionStatus,
   localCaptionStatus,
 }) {
-  const text = remotePrimaryCaption || localPrimaryCaption;
+  const text = remotePrimaryCaption;
   if (!text) {
     return null;
   }
 
-  const title = remotePrimaryCaption ? `${peerName} says` : "You say";
-  const status = remotePrimaryCaption ? remoteCaptionStatus : localCaptionStatus;
-  const secondaryText = remotePrimaryCaption ? remoteSecondaryCaption : "";
+  const title = `${peerName} says`;
+  const status = remoteCaptionStatus;
+  const secondaryText = remoteSecondaryCaption;
 
   return (
     <div className="absolute inset-x-3 bottom-24 z-20 lg:bottom-6 lg:right-6 lg:left-6">
@@ -594,8 +563,8 @@ export const VideoCallOverlay = ({
     ? "This browser does not support live speech or audio transcription for captions."
     : captionsEnabled
       ? captionCaptureMode === "transcription"
-        ? `Capturing short audio snippets in ${speechInputLabel} and translating to ${translationLabel}`
-        : `Listening in ${speechInputLabel} and translating to ${translationLabel}`
+        ? `Capturing short audio snippets with automatic language detection and translating to ${translationLabel}`
+        : `Listening with automatic language detection and translating to ${translationLabel}`
       : captionCaptureMode === "transcription"
         ? "Turn on chunked audio transcription and translation for this call"
         : "Start real-time speech recognition and translation in this call";
@@ -617,7 +586,7 @@ export const VideoCallOverlay = ({
       : localCaption?.isFinal
         ? "final"
         : "listening";
-  const hasVisibleCaption = Boolean(remotePrimaryCaption || localPrimaryCaption);
+  const hasVisibleCaption = Boolean(remotePrimaryCaption);
 
   return (
     <AnimatePresence>
